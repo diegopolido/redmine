@@ -13,8 +13,8 @@ if [ "${1:-}" == "bundle" ] && [ "${2:-}" == "exec" ] && [ "${3:-}" == "puma" ] 
    && [ "${SKIP_DB_MIGRATE:-}" != "1" ]; then
   echo "==> Running core migrations (db:migrate)"
   bundle exec rake db:migrate
-  echo "==> Running plugin migrations (redmine:plugins:migrate)"
-  bundle exec rake redmine:plugins:migrate
+  echo "==> Running plugin migrations (redmine:plugins:migrate) and applying ENV settings"
+  bundle exec rake redmine:plugins:migrate deploy:apply_settings
 fi
 
 exec "$@"

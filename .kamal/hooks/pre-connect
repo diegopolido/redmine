@@ -6,9 +6,9 @@ set -euo pipefail
 cd "$(dirname "$0")/../.."
 
 required=(KAMAL_REGISTRY_PASSWORD SECRET_KEY_BASE MYSQL_ROOT_PASSWORD REDMINE_DB_PASSWORD)
-# SMTP credentials are required only while SMTP is enabled in config/deploy.yml.
-if grep -qE '^[[:space:]]+SMTP_ADDRESS:' config/deploy.yml; then
-  required+=(SMTP_USERNAME SMTP_PASSWORD)
+# SMTP credentials are required only while SMTP is enabled (SMTP_ADDRESS set).
+if bin/env-secret SMTP_ADDRESS >/dev/null 2>&1; then
+  required+=(SMTP_PORT SMTP_USERNAME SMTP_PASSWORD MAILER_FROM)
 fi
 
 missing=()

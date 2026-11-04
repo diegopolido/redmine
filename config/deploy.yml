@@ -50,10 +50,9 @@ env:
     REDMINE_DB_DATABASE: redmine
     REDMINE_DB_USERNAME: redmine
     REDMINE_ATTACHMENTS_PATH: /rails/files
-    # Outgoing e-mail via Brevo (login + SMTP key are secrets, see .env.production).
-    # Remove SMTP_ADDRESS to disable delivery.
-    SMTP_ADDRESS: smtp-relay.brevo.com
-    SMTP_PORT: 587
+    # Outgoing e-mail via Brevo. SMTP_ADDRESS/PORT/USERNAME/PASSWORD and
+    # MAILER_FROM come from .env.production (same names as the other apps);
+    # leave SMTP_ADDRESS empty there to disable delivery.
     SMTP_ENABLE_STARTTLS: "true"
     SMTP_TLS: "false"
     SMTP_AUTHENTICATION: login
@@ -61,8 +60,11 @@ env:
   secret:
     - SECRET_KEY_BASE
     - REDMINE_DB_PASSWORD
+    - SMTP_ADDRESS
+    - SMTP_PORT
     - SMTP_USERNAME
     - SMTP_PASSWORD
+    - MAILER_FROM
 
 volumes:
   - "redmine_files:/rails/files"

@@ -25,7 +25,7 @@ Use sempre `bin/kamal`, nunca um `kamal` global.
 bundle config set --local only development   # só o Kamal; dispensa headers do MySQL
 bundle install
 bin/migration/init_secrets.sh                # cria .env.production com senhas aleatórias, se não existir
-$EDITOR .env.production                      # token do GitHub + login/chave SMTP da Brevo
+$EDITOR .env.production                      # token do GitHub + chave SMTP da Brevo
 ```
 
 **Guarde uma cópia do `.env.production` no seu gerenciador de senhas.** Se o
@@ -110,8 +110,13 @@ valores para o servidor durante o deploy, como variáveis de ambiente dos contai
 | `MYSQL_ROOT_PASSWORD` | root do accessory `db` |
 | `REDMINE_DB_PASSWORD` | usuário `redmine` do MySQL (a app usa este) |
 | `MYSQL_PASSWORD` | igual a `REDMINE_DB_PASSWORD`. O container mysql só usa no primeiro boot, para criar o usuário |
+| `SMTP_ADDRESS` | `smtp-relay.brevo.com` (vazio = sem envio de e-mail) |
+| `SMTP_PORT` | `587` |
 | `SMTP_USERNAME` | login SMTP da Brevo (algo como `xxxxxx@smtp-brevo.com`) |
 | `SMTP_PASSWORD` | chave SMTP da Brevo (`xsmtpsib-...`, não é a chave de API `xkeysib-...`) |
+| `MAILER_FROM` | remetente, ex. `'Redmine <redmine@polidosantana.com.br>'` |
+
+As variáveis SMTP e `MAILER_FROM` têm os mesmos nomes usados nas outras apps.
 
 `MYSQL_ROOT_PASSWORD` e `MYSQL_PASSWORD` só valem no **primeiro** boot do volume
 `mysql_data`. Para trocá-los depois, use `ALTER USER` no banco (`bin/kamal dbc`) e
@@ -119,17 +124,19 @@ atualize o `.env.production`.
 
 ### SMTP (Brevo)
 
-Configurado em `config/deploy.yml`: `smtp-relay.brevo.com:587`, STARTTLS, autenticação
-`login`, HELO `polidosantana.com.br`. O login e a chave SMTP ficam no `.env.production`. Os dois estão
-em *Brevo → SMTP & API → aba SMTP*.
+`SMTP_ADDRESS`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD` e `MAILER_FROM` ficam no
+`.env.production`. O login e a chave SMTP estão em *Brevo → SMTP & API → aba SMTP*. O
+`config/deploy.yml` define STARTTLS, autenticação `login` e o HELO `polidosantana.com.br`.
 
-- O remetente (`From`) é uma configuração do Redmine guardada no banco: *Administração →
-  Configurações → Notificações por e-mail → "E-mail de envio"*. Esse endereço precisa ser
-  um remetente verificado na Brevo (*Senders, Domains & Dedicated IPs*), de preferência com
-  o domínio `polidosantana.com.br` autenticado (registros DKIM, Brevo code e DMARC no DNS).
-  Se você já fez isso para outras apps, nada muda.
-- Para desligar o envio, remova `SMTP_ADDRESS` do `deploy.yml`. O hook deixa de exigir as
-  credenciais SMTP.
+- **Remetente:** a cada boot, a task `deploy:apply_settings` (`lib/tasks/deploy.rake`)
+  grava `MAILER_FROM` na configuração *Administração → Configurações → Notificações por
+  e-mail → "E-mail de envio"*. Por isso, mudanças feitas nessa tela são sobrescritas no
+  próximo deploy; altere o `.env.production`. Com `MAILER_FROM` vazio, vale o que estiver
+  no banco.
+- O endereço precisa ser um remetente verificado na Brevo (*Senders, Domains & Dedicated
+  IPs*), de preferência com o domínio `polidosantana.com.br` autenticado (DKIM e DMARC no
+  DNS). Se você já fez isso para as outras apps, nada muda.
+- Para desligar o envio, deixe `SMTP_ADDRESS` vazio. O hook deixa de exigir as credenciais.
 
 ## Operação
 
