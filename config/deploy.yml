@@ -1,0 +1,95 @@
+# Kamal 2 deploy configuration for Redmine 7.0.
+# Run everything through bin/kamal (version pinned in Gemfile.local).
+#
+# The server runs several apps sharing one kamal-proxy. Global proxy settings
+# (`kamal proxy boot_config`, proxy reboot/upgrade) are managed from the
+# infrastructure repo, never from here.
+
+service: redmine
+image: diegopolido/redmine # => ghcr.io/diegopolido/redmine
+
+# The only value to fill in on migration day (also used by the db accessory
+# below through the YAML alias).
+x-vps-ip: &vps_ip "<<IP_DA_VPS>>"
+
+servers:
+  web:
+    hosts:
+      - *vps_ip
+
+proxy:
+  ssl: true
+  host: redmine.polidosantana.com.br
+  app_port: 3000
+  # Large attachments upload through the proxy.
+  buffering:
+    max_request_body: 0
+  response_timeout: 60
+  healthcheck:
+    # Redmine has no /up endpoint; /login always answers 200 and touches
+    # the database (settings), so it is a meaningful check.
+    path: /login
+    interval: 3
+    timeout: 5
+
+registry:
+  server: ghcr.io
+  username: diegopolido
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64 # Hostinger KVM VPS are x86_64
+
+env:
+  clear:
+    RAILS_MAX_THREADS: 3
+    WEB_CONCURRENCY: 1 # Puma single mode: one process, few threads
+    REDMINE_DB_HOST: redmine-db # container name of the `db` accessory
+    REDMINE_DB_PORT: 3306
+    REDMINE_DB_DATABASE: redmine
+    REDMINE_DB_USERNAME: redmine
+    REDMINE_ATTACHMENTS_PATH: /rails/files
+    # Outgoing e-mail. With SMTP_ADDRESS unset, e-mails are not delivered.
+    # SMTP_ADDRESS: smtp.example.com
+    # SMTP_PORT: 587
+    # SMTP_DOMAIN: polidosantana.com.br
+    # SMTP_ENABLE_STARTTLS: "true"
+    # SMTP_TLS: "false"
+    # SMTP_AUTHENTICATION: login
+    # SMTP_USERNAME: redmine@polidosantana.com.br
+  secret:
+    - SECRET_KEY_BASE
+    - REDMINE_DB_PASSWORD
+    - SMTP_PASSWORD
+
+volumes:
+  - "redmine_files:/rails/files"
+
+aliases:
+  console: app exec --interactive --reuse "bin/rails console"
+  shell: app exec --interactive --reuse "bash"
+  logs: app logs -f
+  dbc: accessory exec db --interactive --reuse "mysql -uroot -p" # prompts for MYSQL_ROOT_PASSWORD
+
+accessories:
+  # Named `db` so it can later be shared by other apps on the server: each
+  # app gets its own database + user (see DEPLOY.md). Not published on any
+  # host port; apps reach it as `redmine-db:3306` on the `kamal` network.
+  db:
+    image: mysql:8.4
+    host: *vps_ip
+    cmd: >-
+      --performance-schema=OFF
+      --skip-name-resolve
+      --innodb-buffer-pool-size=256M
+      --max-connections=100
+    env:
+      clear:
+        MYSQL_DATABASE: redmine
+        MYSQL_USER: redmine
+      secret:
+        - MYSQL_ROOT_PASSWORD
+        - MYSQL_PASSWORD
+    volumes:
+      - "mysql_data:/var/lib/mysql"
