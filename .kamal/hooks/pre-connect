@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Kamal hook: runs before any command connects to the server (setup, deploy,
+# app/accessory commands...). Aborts if a required secret is missing, since
+# Kamal itself would silently deploy an empty value.
+set -euo pipefail
+cd "$(dirname "$0")/../.."
+
+required=(KAMAL_REGISTRY_PASSWORD SECRET_KEY_BASE MYSQL_ROOT_PASSWORD REDMINE_DB_PASSWORD)
+# SMTP credentials are required only while SMTP is enabled in config/deploy.yml.
+if grep -qE '^[[:space:]]+SMTP_ADDRESS:' config/deploy.yml; then
+  required+=(SMTP_USERNAME SMTP_PASSWORD)
+fi
+
+missing=()
+for name in "${required[@]}"; do
+  bin/env-secret "$name" >/dev/null 2>&1 || missing+=("$name")
+done
+
+if [ ${#missing[@]} -gt 0 ]; then
+  echo "Missing secrets: ${missing[*]}" >&2
+  echo "Fill them in .env (template: .env.example) or export them." >&2
+  exit 1
+fi

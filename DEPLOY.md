@@ -14,7 +14,8 @@ Branch `deploy` = `7.0-stable` do upstream + infraestrutura deste servidor + plu
 
 Arquivos de infraestrutura: `Dockerfile`, `.dockerignore`, `config/deploy.yml`,
 `config/puma.rb`, `config/database.yml`, `config/configuration.yml`, `Gemfile.local`,
-`Gemfile.lock`, `bin/docker-entrypoint`, `bin/kamal`, `bin/migration/`, `.kamal/secrets.example`.
+`Gemfile.lock`, `bin/docker-entrypoint`, `bin/kamal`, `bin/env-secret`, `bin/migration/`,
+`.kamal/secrets`, `.kamal/hooks/pre-connect`, `.env.example`.
 
 Use sempre `bin/kamal`, nunca um `kamal` global.
 
@@ -23,11 +24,11 @@ Use sempre `bin/kamal`, nunca um `kamal` global.
 ```sh
 bundle config set --local only development   # só o Kamal; dispensa headers do MySQL
 bundle install
-bin/migration/init_secrets.sh                # cria .kamal/secrets (fora do git), se não existir
-export KAMAL_REGISTRY_PASSWORD=ghp_...       # token do GitHub com write:packages
+bin/migration/init_secrets.sh                # cria .env com senhas aleatórias, se não existir
+$EDITOR .env                                 # token do GitHub + login/chave SMTP da Brevo
 ```
 
-**Guarde uma cópia de `.kamal/secrets` no seu gerenciador de senhas.** Se o
+**Guarde uma cópia do `.env` no seu gerenciador de senhas.** Se o
 `SECRET_KEY_BASE` mudar, todo mundo é deslogado. Se o `MYSQL_ROOT_PASSWORD` se
 perder, você perde o acesso root ao banco.
 
@@ -91,9 +92,16 @@ recria o banco e substitui os anexos.
 
 ## Secrets
 
-Os secrets ficam em `.kamal/secrets`, que está no `.gitignore`. O modelo é
-`.kamal/secrets.example`. Cada linha pode ter um valor literal, `$VAR` (lido do ambiente)
-ou `$(comando)`, por exemplo a CLI de um gerenciador de senhas.
+Os valores ficam **só na sua máquina**, no arquivo `.env` na raiz do repo. Ele está no
+`.gitignore` e no `.dockerignore`, e o modelo é `.env.example`. O Kamal envia esses
+valores para o servidor durante o deploy, como variáveis de ambiente dos containers.
+
+- `.kamal/secrets` é versionado e **não contém valores**. Cada linha chama
+  `bin/env-secret NOME`, que procura primeiro uma variável de ambiente com esse nome e
+  depois o `.env`. Nunca coloque valores literais nesse arquivo.
+- `.kamal/hooks/pre-connect` aborta qualquer comando do Kamal se faltar um secret
+  obrigatório. Sem esse hook, o Kamal faria o deploy com o valor vazio.
+- Para conferir (cuidado, isso imprime os valores): `bin/kamal secrets print`.
 
 | Secret | Uso |
 |---|---|
@@ -102,20 +110,26 @@ ou `$(comando)`, por exemplo a CLI de um gerenciador de senhas.
 | `MYSQL_ROOT_PASSWORD` | root do accessory `db` |
 | `REDMINE_DB_PASSWORD` | usuário `redmine` do MySQL (a app usa este) |
 | `MYSQL_PASSWORD` | igual a `REDMINE_DB_PASSWORD`. O container mysql só usa no primeiro boot, para criar o usuário |
-| `SMTP_PASSWORD` | senha SMTP (vazio = sem SMTP) |
+| `SMTP_USERNAME` | login SMTP da Brevo (algo como `xxxxxx@smtp-brevo.com`) |
+| `SMTP_PASSWORD` | chave SMTP da Brevo (`xsmtpsib-...`, não é a chave de API `xkeysib-...`) |
 
 `MYSQL_ROOT_PASSWORD` e `MYSQL_PASSWORD` só valem no **primeiro** boot do volume
 `mysql_data`. Para trocá-los depois, use `ALTER USER` no banco (`bin/kamal dbc`) e
-atualize `.kamal/secrets`.
+atualize o `.env`.
 
-### SMTP
+### SMTP (Brevo)
 
-O envio de e-mail fica desligado enquanto `SMTP_ADDRESS` não estiver definido. Para
-ligar, descomente o bloco `SMTP_*` em `config/deploy.yml`. O padrão é a porta 587 com
-STARTTLS e autenticação `login`. Para TLS implícito na porta 465, use `SMTP_PORT: 465`,
-`SMTP_TLS: "true"` e `SMTP_ENABLE_STARTTLS: "false"`. Depois preencha `SMTP_PASSWORD` e
-rode `bin/kamal deploy`. O remetente (`From`) é uma configuração do Redmine guardada no
-banco: *Administração → Configurações → Notificações por e-mail*.
+Configurado em `config/deploy.yml`: `smtp-relay.brevo.com:587`, STARTTLS, autenticação
+`login`, HELO `polidosantana.com.br`. O login e a chave SMTP ficam no `.env`. Os dois estão
+em *Brevo → SMTP & API → aba SMTP*.
+
+- O remetente (`From`) é uma configuração do Redmine guardada no banco: *Administração →
+  Configurações → Notificações por e-mail → "E-mail de envio"*. Esse endereço precisa ser
+  um remetente verificado na Brevo (*Senders, Domains & Dedicated IPs*), de preferência com
+  o domínio `polidosantana.com.br` autenticado (registros DKIM, Brevo code e DMARC no DNS).
+  Se você já fez isso para outras apps, nada muda.
+- Para desligar o envio, remova `SMTP_ADDRESS` do `deploy.yml`. O hook deixa de exigir as
+  credenciais SMTP.
 
 ## Operação
 

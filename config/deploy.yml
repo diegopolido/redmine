@@ -50,17 +50,18 @@ env:
     REDMINE_DB_DATABASE: redmine
     REDMINE_DB_USERNAME: redmine
     REDMINE_ATTACHMENTS_PATH: /rails/files
-    # Outgoing e-mail. With SMTP_ADDRESS unset, e-mails are not delivered.
-    # SMTP_ADDRESS: smtp.example.com
-    # SMTP_PORT: 587
-    # SMTP_DOMAIN: polidosantana.com.br
-    # SMTP_ENABLE_STARTTLS: "true"
-    # SMTP_TLS: "false"
-    # SMTP_AUTHENTICATION: login
-    # SMTP_USERNAME: redmine@polidosantana.com.br
+    # Outgoing e-mail via Brevo (login + SMTP key are secrets, see .env).
+    # Remove SMTP_ADDRESS to disable delivery.
+    SMTP_ADDRESS: smtp-relay.brevo.com
+    SMTP_PORT: 587
+    SMTP_ENABLE_STARTTLS: "true"
+    SMTP_TLS: "false"
+    SMTP_AUTHENTICATION: login
+    SMTP_DOMAIN: polidosantana.com.br # HELO domain
   secret:
     - SECRET_KEY_BASE
     - REDMINE_DB_PASSWORD
+    - SMTP_USERNAME
     - SMTP_PASSWORD
 
 volumes:

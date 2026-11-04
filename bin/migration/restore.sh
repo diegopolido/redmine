@@ -3,7 +3,7 @@
 #
 # Usage: bin/migration/restore.sh <redmine.sql[.gz]> <redmine-files.tar.gz>
 #
-# Prerequisites: config/deploy.yml has the real IP, .kamal/secrets exists and
+# Prerequisites: config/deploy.yml has the real IP, .env is filled in and
 # `bin/kamal setup` has run once (app image + db accessory on the server).
 #
 # Steps (all idempotent — safe to re-run with the same or a newer backup):
@@ -34,7 +34,7 @@ DUMP=$1
 FILES_TAR=$2
 [ -f "$DUMP" ]      || die "dump not found: $DUMP"
 [ -f "$FILES_TAR" ] || die "files archive not found: $FILES_TAR"
-[ -f .kamal/secrets ] || die ".kamal/secrets missing (run bin/migration/init_secrets.sh)."
+.kamal/hooks/pre-connect || die "secrets incomplete (see .env / .env.example)."
 gzip -t "$FILES_TAR" 2>/dev/null || die "$FILES_TAR is not a valid .tar.gz"
 case "$DUMP" in
   *.gz) gzip -t "$DUMP" || die "$DUMP is not a valid gzip file"; DUMP_CAT="gunzip -c" ;;

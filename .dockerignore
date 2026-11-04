@@ -1,8 +1,9 @@
 # Keep the build context small and free of secrets.
 .git
 .github
-.kamal/secrets*
-!.kamal/secrets.example
+.env
+.env.*
+.kamal
 .bundle
 .idea
 .vscode
