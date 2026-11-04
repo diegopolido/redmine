@@ -1,0 +1,20 @@
+#!/bin/bash
+# Container entrypoint: prepares the database before starting the app server.
+set -euo pipefail
+
+if [ -z "${SECRET_KEY_BASE:-}" ] && [ -z "${SECRET_KEY_BASE_DUMMY:-}" ]; then
+  echo "ERROR: SECRET_KEY_BASE is not set (it must stay the same across deploys)." >&2
+  exit 1
+fi
+
+# Run migrations only when starting the web server (not for `bin/rails console`,
+# one-off rake tasks, etc.).
+if [ "${1:-}" == "bundle" ] && [ "${2:-}" == "exec" ] && [ "${3:-}" == "puma" ] \
+   && [ "${SKIP_DB_MIGRATE:-}" != "1" ]; then
+  echo "==> Running core migrations (db:migrate)"
+  bundle exec rake db:migrate
+  echo "==> Running plugin migrations (redmine:plugins:migrate)"
+  bundle exec rake redmine:plugins:migrate
+fi
+
+exec "$@"

@@ -1,0 +1,26 @@
+# Keep the build context small and free of secrets.
+.git
+.github
+.kamal/secrets*
+!.kamal/secrets.example
+.bundle
+.idea
+.vscode
+coverage
+files/*
+!files/delete.me
+log/*
+!log/delete.me
+tmp/*
+!tmp/.keep
+public/assets/*
+public/plugin_assets/*
+node_modules
+vendor/bundle
+test
+spec
+*.zip
+*.sql
+*.sql.gz
+*.tar.gz
+DEPLOY.md
