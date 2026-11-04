@@ -28,6 +28,7 @@ IMAGE=$P-app:latest
 WORK=$ROOT/tmp/migration/e2e
 OLD_VERSION=5.0.5                   # production runs 5.0.5
 ADMIN_PASS='Admin12345!'
+ADMIN_LOGIN=admin                   # with a real backup: the first active admin (see restore_into)
 SECRET_KEY_BASE=$(openssl rand -hex 64)
 DB_PW=e2e-db-pw
 
@@ -153,7 +154,7 @@ start_app() { # env port
   docker logs --tail 40 $P-$1-app; die "app ($1) did not answer /login"
 }
 # shellcheck disable=SC2046
-app_run() { local e=$1; shift; docker run --rm --network $NET -v $P-$e-files:/rails/files $(app_env $e) $IMAGE "$@"; }
+app_run() { local e=$1; shift; docker run --rm --network $NET -v $P-$e-files:/rails/files -e ADMIN_PASS="$ADMIN_PASS" $(app_env $e) $IMAGE "$@"; }
 psql_() { local e=$1; shift; docker exec -i $P-$e-db psql -v ON_ERROR_STOP=1 -q -U redmine "$@"; }
 
 # Mirrors restore.sh steps 3-8 (without SSH/Kamal).
@@ -172,6 +173,18 @@ SQL
     find /data -type f -exec chmod 644 {} +"
   app_run $1 bundle exec rake db:migrate redmine:plugins:migrate 2>&1 | { grep -E "^==.*migrated" || true; } | wc -l | sed 's/$/ migrations applied/'
   app_run $1 bin/rails runner bin/migration/post_restore.rb
+  if [ -n "${REAL_BACKUP:-}" ]; then
+    # Real data: we don't know any password. Give the first active admin a
+    # throwaway one -- in this LOCAL copy only -- so the checks can log in.
+    ADMIN_LOGIN=$(app_run $1 bin/rails runner '
+      u = User.active.where(admin: true).order(:id).first or abort("no active admin")
+      u.password = u.password_confirmation = ENV.fetch("ADMIN_PASS")
+      u.must_change_passwd = false
+      u.twofa_scheme = nil; u.twofa_totp_key = nil
+      u.save!(validate: false)
+      puts u.login' | tail -1)
+    echo "local copy: logging in as '$ADMIN_LOGIN' with a throwaway password"
+  fi
   start_app $1 $4
 }
 
@@ -182,7 +195,7 @@ login() { # base
   local token code
   token=$(curl -s -c "$JAR" -b "$JAR" $1/login | csrf)
   code=$(curl -s -o /dev/null -w '%{http_code} %{redirect_url}' -c "$JAR" -b "$JAR" \
-    --data-urlencode "authenticity_token=$token" --data-urlencode username=admin \
+    --data-urlencode "authenticity_token=$token" --data-urlencode "username=$ADMIN_LOGIN" \
     --data-urlencode "password=$ADMIN_PASS" $1/login)
   [[ "$code" == 302* && "$code" != *"/login"* ]] || die "login failed at $1 ($code)"
   curl -s -b "$JAR" $1/my/page | grep -q 'class="logout"' || die "not logged in after login at $1"
@@ -272,5 +285,5 @@ ok "[move] data and attachments identical on the new server"
 step "All checks passed"
 if [ "${KEEP:-}" = 1 ]; then
   ENVS=(move)
-  echo "Kept: http://localhost:3300 (admin / $ADMIN_PASS). Clean up: docker rm -f $P-new-db $P-new-app"
+  echo "Kept: http://localhost:3300 ($ADMIN_LOGIN / $ADMIN_PASS). Clean up: docker rm -f $P-new-db $P-new-app"
 fi
