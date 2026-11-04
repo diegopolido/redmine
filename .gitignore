@@ -54,10 +54,10 @@ yarn-error.log
 !/config/database.yml
 !/config/configuration.yml
 !/plugins/redmine_agile
-# Production secrets live in .env (local only); .kamal/secrets just maps them.
+# Production secrets live in .env.production (local only); .kamal/secrets just maps them.
 /.env
 /.env.*
-!/.env.example
+!/.env.production.example
 /.kamal/secrets-common
 /redmine_agile-*.zip
 /tmp/migration/

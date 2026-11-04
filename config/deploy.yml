@@ -50,7 +50,7 @@ env:
     REDMINE_DB_DATABASE: redmine
     REDMINE_DB_USERNAME: redmine
     REDMINE_ATTACHMENTS_PATH: /rails/files
-    # Outgoing e-mail via Brevo (login + SMTP key are secrets, see .env).
+    # Outgoing e-mail via Brevo (login + SMTP key are secrets, see .env.production).
     # Remove SMTP_ADDRESS to disable delivery.
     SMTP_ADDRESS: smtp-relay.brevo.com
     SMTP_PORT: 587

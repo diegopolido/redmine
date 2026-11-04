@@ -15,7 +15,7 @@ Branch `deploy` = `7.0-stable` do upstream + infraestrutura deste servidor + plu
 Arquivos de infraestrutura: `Dockerfile`, `.dockerignore`, `config/deploy.yml`,
 `config/puma.rb`, `config/database.yml`, `config/configuration.yml`, `Gemfile.local`,
 `Gemfile.lock`, `bin/docker-entrypoint`, `bin/kamal`, `bin/env-secret`, `bin/migration/`,
-`.kamal/secrets`, `.kamal/hooks/pre-connect`, `.env.example`.
+`.kamal/secrets`, `.kamal/hooks/pre-connect`, `.env.production.example`.
 
 Use sempre `bin/kamal`, nunca um `kamal` global.
 
@@ -24,11 +24,11 @@ Use sempre `bin/kamal`, nunca um `kamal` global.
 ```sh
 bundle config set --local only development   # só o Kamal; dispensa headers do MySQL
 bundle install
-bin/migration/init_secrets.sh                # cria .env com senhas aleatórias, se não existir
-$EDITOR .env                                 # token do GitHub + login/chave SMTP da Brevo
+bin/migration/init_secrets.sh                # cria .env.production com senhas aleatórias, se não existir
+$EDITOR .env.production                      # token do GitHub + login/chave SMTP da Brevo
 ```
 
-**Guarde uma cópia do `.env` no seu gerenciador de senhas.** Se o
+**Guarde uma cópia do `.env.production` no seu gerenciador de senhas.** Se o
 `SECRET_KEY_BASE` mudar, todo mundo é deslogado. Se o `MYSQL_ROOT_PASSWORD` se
 perder, você perde o acesso root ao banco.
 
@@ -92,13 +92,13 @@ recria o banco e substitui os anexos.
 
 ## Secrets
 
-Os valores ficam **só na sua máquina**, no arquivo `.env` na raiz do repo. Ele está no
-`.gitignore` e no `.dockerignore`, e o modelo é `.env.example`. O Kamal envia esses
+Os valores ficam **só na sua máquina**, no arquivo `.env.production` na raiz do repo. Ele está no
+`.gitignore` e no `.dockerignore`, e o modelo é `.env.production.example`. O Kamal envia esses
 valores para o servidor durante o deploy, como variáveis de ambiente dos containers.
 
 - `.kamal/secrets` é versionado e **não contém valores**. Cada linha chama
   `bin/env-secret NOME`, que procura primeiro uma variável de ambiente com esse nome e
-  depois o `.env`. Nunca coloque valores literais nesse arquivo.
+  depois o `.env.production`. Nunca coloque valores literais nesse arquivo.
 - `.kamal/hooks/pre-connect` aborta qualquer comando do Kamal se faltar um secret
   obrigatório. Sem esse hook, o Kamal faria o deploy com o valor vazio.
 - Para conferir (cuidado, isso imprime os valores): `bin/kamal secrets print`.
@@ -115,12 +115,12 @@ valores para o servidor durante o deploy, como variáveis de ambiente dos contai
 
 `MYSQL_ROOT_PASSWORD` e `MYSQL_PASSWORD` só valem no **primeiro** boot do volume
 `mysql_data`. Para trocá-los depois, use `ALTER USER` no banco (`bin/kamal dbc`) e
-atualize o `.env`.
+atualize o `.env.production`.
 
 ### SMTP (Brevo)
 
 Configurado em `config/deploy.yml`: `smtp-relay.brevo.com:587`, STARTTLS, autenticação
-`login`, HELO `polidosantana.com.br`. O login e a chave SMTP ficam no `.env`. Os dois estão
+`login`, HELO `polidosantana.com.br`. O login e a chave SMTP ficam no `.env.production`. Os dois estão
 em *Brevo → SMTP & API → aba SMTP*.
 
 - O remetente (`From`) é uma configuração do Redmine guardada no banco: *Administração →
