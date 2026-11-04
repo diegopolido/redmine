@@ -46,3 +46,17 @@
 
 /node_modules
 yarn-error.log
+
+# --- deploy branch (Kamal) ---------------------------------------------------
+# Kept at the end of the file to minimise merge conflicts with 7.0-stable.
+!/Gemfile.lock
+!/Gemfile.local
+!/config/database.yml
+!/config/configuration.yml
+!/plugins/redmine_agile
+/.kamal/secrets
+/.kamal/secrets-common
+/.kamal/secrets.*
+!/.kamal/secrets.example
+/redmine_agile-*.zip
+/tmp/migration/

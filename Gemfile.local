@@ -1,0 +1,12 @@
+# Gemfile.local — gems specific to this deployment (loaded automatically by
+# Redmine's Gemfile). Kept out of the core Gemfile to avoid merge conflicts
+# with future 7.0-stable releases.
+
+# Production application server (the core Gemfile only has it in :test).
+gem "puma"
+
+group :development do
+  # Deploy tooling. The version MUST match every other app on the same server,
+  # because they all share one kamal-proxy. See DEPLOY.md, "Kamal version policy".
+  gem "kamal", "~> 2.12.0", require: false
+end
