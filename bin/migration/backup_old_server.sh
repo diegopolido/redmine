@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
-# Run ON THE OLD SERVER (Redmine 5.0 + MySQL). Produces, in $OUT_DIR:
+# Run ON THE OLD SERVER (Redmine 5.0 + MySQL). The MySQL dump is converted to
+# PostgreSQL locally afterwards (bin/migration/convert_mysql_to_pg.sh).
+# Produces, in $OUT_DIR:
 #   redmine.sql.gz        mysqldump of the Redmine database (no CREATE DATABASE,
 #                         so it restores into any database name)
 #   redmine-files.tar.gz  the attachments directory (contents only)
 #   MANIFEST.txt          versions, plugin list and sha256 checksums
 #
 # Usage (copy the script to the old server first):
-#   REDMINE_DIR=/var/www/redmine bash backup_old_server.sh
+#   bash backup_old_server.sh            # as the `deploy` user, no sudo needed
 #
 # Env:
-#   REDMINE_DIR  Redmine root on the old server (default: /var/www/redmine)
+#   REDMINE_DIR  Redmine root (default: /home/deploy/www/redmine/redmine-5.0-stable)
 #   OUT_DIR      output directory (default: $HOME/redmine-migration)
 #   RAILS_ENV    database.yml section to read (default: production)
 #
 # Idempotent: re-running overwrites the previous backup in $OUT_DIR.
 set -euo pipefail
 
-REDMINE_DIR="${REDMINE_DIR:-/var/www/redmine}"
+REDMINE_DIR="${REDMINE_DIR:-/home/deploy/www/redmine/redmine-5.0-stable}"
 OUT_DIR="${OUT_DIR:-$HOME/redmine-migration}"
 RAILS_ENV="${RAILS_ENV:-production}"
 
