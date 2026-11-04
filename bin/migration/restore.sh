@@ -60,7 +60,7 @@ if [ "$(remote "docker inspect -f '{{.State.Running}}' $DB_CONTAINER 2>/dev/null
   $KAMAL accessory boot db
 fi
 for i in $(seq 1 60); do
-  if remote "docker exec $DB_CONTAINER sh -c 'MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysqladmin -uroot ping --silent'" >/dev/null 2>&1; then
+  if remote "docker exec $DB_CONTAINER sh -c 'MYSQL_PWD=\"\$MYSQL_ROOT_PASSWORD\" mysqladmin -h127.0.0.1 -uroot ping --silent'" >/dev/null 2>&1; then
     echo "MySQL is ready."; break
   fi
   [ "$i" -eq 60 ] && die "MySQL did not become ready in time."

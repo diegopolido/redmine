@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Sends Redmine's own test e-mail (Mailer.deliver_test_email — the same as
+# Administration > Settings > Email notifications > "Send a test email")
+# from the production image, against a throwaway local MySQL.
+#
+# Usage:
+#   bin/test-email --mailpit you@example.com   # local fake SMTP (no credentials,
+#                                               # nothing leaves your machine)
+#   bin/test-email you@example.com             # real delivery through the SMTP_* and
+#                                               # MAILER_FROM values in .env.production
+# Env: KEEP=1 keeps Mailpit running (web UI on http://localhost:8025).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+mode=real
+if [ "${1:-}" = "--mailpit" ]; then mode=mailpit; shift; fi
+TEST_EMAIL_TO=${1:?usage: bin/test-email [--mailpit] recipient@example.com}
+export TEST_EMAIL_TO
+
+P=redmine-mailtest
+IMAGE=$P-app:latest
+step() { printf '\n\033[1m==> %s\033[0m\n' "$*"; }
+die()  { printf '\033[31mFAIL: %s\033[0m\n' "$*" >&2; exit 1; }
+
+cleanup() {
+  docker rm -f $P-db $P-app >/dev/null 2>&1 || true
+  [ "${KEEP:-}" = 1 ] || docker rm -f $P-mailpit >/dev/null 2>&1 || true
+  [ "${KEEP:-}" = 1 ] || docker network rm $P-net >/dev/null 2>&1 || true
+}
+trap cleanup EXIT
+cleanup; docker rm -f $P-mailpit >/dev/null 2>&1 || true
+docker network create $P-net >/dev/null 2>&1 || true
+
+if [ $mode = mailpit ]; then
+  step "Starting Mailpit (fake SMTP)"
+  docker run -d --name $P-mailpit --network $P-net -p 8025:8025 axllent/mailpit >/dev/null
+  export SMTP_ADDRESS=$P-mailpit SMTP_PORT=1025 SMTP_ENABLE_STARTTLS=false SMTP_USERNAME= SMTP_PASSWORD=
+  export MAILER_FROM
+  MAILER_FROM=$(bin/env-secret --optional MAILER_FROM)
+  MAILER_FROM=${MAILER_FROM:-Redmine <redmine@example.com>}
+else
+  step "Reading SMTP settings from .env.production"
+  for v in SMTP_ADDRESS SMTP_PORT SMTP_USERNAME SMTP_PASSWORD MAILER_FROM; do
+    val=$(bin/env-secret "$v") || die "$v is empty in .env.production"
+    export "$v=$val"
+  done
+  export SMTP_ENABLE_STARTTLS=true
+  echo "server=$SMTP_ADDRESS:$SMTP_PORT user=$SMTP_USERNAME from=$MAILER_FROM"
+fi
+
+step "Building the production image"
+docker build -q -t $IMAGE . >/dev/null
+
+step "Starting a throwaway MySQL"
+docker run -d --name $P-db --network $P-net -e MYSQL_ROOT_PASSWORD=r -e MYSQL_DATABASE=redmine \
+  -e MYSQL_USER=redmine -e MYSQL_PASSWORD=p mysql:8.4 --performance-schema=OFF >/dev/null
+for i in $(seq 90); do
+  docker exec $P-db mysqladmin -h127.0.0.1 -uroot -pr ping --silent >/dev/null 2>&1 && break
+  [ "$i" = 90 ] && die "MySQL did not start"; sleep 2
+done
+
+step "Migrating and sending the test e-mail to $TEST_EMAIL_TO"
+# Values are passed by name (-e VAR) so secrets never appear on the command line.
+docker run --rm --name $P-app --network $P-net \
+  -e RAILS_LOG_TO_STDOUT= -e SECRET_KEY_BASE=$(openssl rand -hex 64) -e REDMINE_DB_HOST=$P-db -e REDMINE_DB_PASSWORD=p \
+  -e SMTP_ADDRESS -e SMTP_PORT -e SMTP_ENABLE_STARTTLS -e SMTP_AUTHENTICATION=login \
+  -e SMTP_DOMAIN=polidosantana.com.br -e SMTP_USERNAME -e SMTP_PASSWORD -e MAILER_FROM -e TEST_EMAIL_TO \
+  $IMAGE bash -c '
+    set -euo pipefail
+    out=$(bundle exec rake db:migrate redmine:plugins:migrate deploy:apply_settings 2>&1) || { echo "$out" | tail -20; exit 1; }
+    echo "$out" | grep "^==>" || true
+    bin/rails runner "
+      user = User.find_by_login(%q(admin))
+      # Bypass callbacks: a normal save would e-mail a security notification
+      # to the previous (dummy) address.
+      user.email_address.update_column(:address, ENV.fetch(%q(TEST_EMAIL_TO)))
+      user.reload
+      s = ActionMailer::Base.smtp_settings
+      puts %Q(==> delivery=#{ActionMailer::Base.delivery_method} #{s[:address]}:#{s[:port]} from=#{Setting.mail_from})
+      Mailer.deliver_test_email(user)
+      puts %Q(==> Delivered to #{user.mail})
+    "'
+
+if [ $mode = mailpit ]; then
+  step "Message received by Mailpit"
+  id=$(curl -s "http://localhost:8025/api/v1/search?query=subject:%22Redmine%20test%22" \
+    | ruby -rjson -e 'puts JSON.parse($stdin.read)["messages"].first&.fetch("ID")')
+  [ -n "$id" ] || die "test e-mail not found in Mailpit"
+  total=$(curl -s http://localhost:8025/api/v1/messages | ruby -rjson -e 'puts JSON.parse($stdin.read)["total"]')
+  [ "$total" = 1 ] || die "expected exactly 1 message in Mailpit, got $total"
+  curl -s "http://localhost:8025/api/v1/message/$id" | ruby -rjson -e '
+    m = JSON.parse($stdin.read)
+    puts "From:    #{m["From"].values_at("Name", "Address").join(" <")}>"
+    puts "To:      #{m["To"].map { |t| t["Address"] }.join(", ")}"
+    puts "Subject: #{m["Subject"]}"
+    puts "Text:\n#{m["Text"].lines.first(8).join}"'
+  [ "${KEEP:-}" = 1 ] && echo "Mailpit kept at http://localhost:8025 (docker rm -f $P-mailpit when done)"
+fi
+step "OK"

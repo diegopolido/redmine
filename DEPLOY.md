@@ -138,6 +138,15 @@ atualize o `.env.production`.
   DNS). Se você já fez isso para as outras apps, nada muda.
 - Para desligar o envio, deixe `SMTP_ADDRESS` vazio. O hook deixa de exigir as credenciais.
 
+**Testar o envio localmente.** O script usa a imagem de produção, um MySQL temporário e
+o mesmo método do botão "Enviar um e-mail de teste" da Administração:
+
+```sh
+bin/test-email --mailpit voce@exemplo.com   # SMTP falso local, nada sai da máquina
+                                            # (KEEP=1 mantém a UI em http://localhost:8025)
+bin/test-email voce@exemplo.com             # envio real pela Brevo, com os valores do .env.production
+```
+
 ## Operação
 
 ```sh

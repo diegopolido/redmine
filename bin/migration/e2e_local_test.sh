@@ -45,7 +45,7 @@ docker network create $NET >/dev/null
 
 wait_mysql() {
   for _ in $(seq 1 90); do
-    docker exec "$1" sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqladmin -uroot ping --silent' >/dev/null 2>&1 && return 0
+    docker exec "$1" sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysqladmin -h127.0.0.1 -uroot ping --silent' >/dev/null 2>&1 && return 0
     sleep 2
   done
   die "MySQL $1 did not start"
