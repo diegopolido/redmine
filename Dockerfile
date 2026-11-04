@@ -18,13 +18,16 @@ RUN apt-get update -qq && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives
 
+# SCHEMA: rake db:migrate / redmine:plugins:migrate always dump the schema;
+# /rails/db is not writable by the app user, so dump it into tmp/.
 ENV RAILS_ENV="production" \
     RAILS_LOG_TO_STDOUT="1" \
     BUNDLE_DEPLOYMENT="1" \
     BUNDLE_PATH="/usr/local/bundle" \
     BUNDLE_WITHOUT="development:test:minimagick" \
     LD_PRELOAD="/usr/local/lib/libjemalloc.so" \
-    REDMINE_ATTACHMENTS_PATH="/rails/files"
+    REDMINE_ATTACHMENTS_PATH="/rails/files" \
+    SCHEMA="/rails/tmp/schema.rb"
 
 # ---------------------------------------------------------------------------
 FROM base AS build
