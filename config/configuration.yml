@@ -1,0 +1,34 @@
+# Deployment Redmine configuration — values come from ENV (processed with ERB
+# by Redmine::Configuration). No secrets in this file.
+# Full reference: config/configuration.yml.example
+
+default:
+  email_delivery:
+    delivery_method: <%= ENV["SMTP_ADDRESS"].to_s.empty? ? ":test" : ":smtp" %>
+    smtp_settings:
+      address: <%= ENV.fetch("SMTP_ADDRESS", "localhost").to_json %>
+      port: <%= ENV.fetch("SMTP_PORT", "587").to_i %>
+      domain: <%= ENV.fetch("SMTP_DOMAIN", "polidosantana.com.br").to_json %>
+      # 587 + STARTTLS is the default. For implicit TLS (port 465) set
+      # SMTP_TLS=true and SMTP_ENABLE_STARTTLS=false.
+      enable_starttls_auto: <%= ENV.fetch("SMTP_ENABLE_STARTTLS", "true") == "true" %>
+      tls: <%= ENV.fetch("SMTP_TLS", "false") == "true" %>
+<% if ENV["SMTP_USERNAME"].to_s != "" %>
+      authentication: <%= ":" + ENV.fetch("SMTP_AUTHENTICATION", "login") %>
+      user_name: <%= ENV["SMTP_USERNAME"].to_json %>
+      password: <%= ENV["SMTP_PASSWORD"].to_s.to_json %>
+<% end %>
+
+  scm_subversion_command:
+  scm_mercurial_command:
+  scm_git_command:
+  scm_cvs_command:
+  scm_bazaar_command:
+
+  imagemagick_convert_command:
+
+production:
+  # Attachments live on a persistent volume (see config/deploy.yml).
+  attachments_storage_path: <%= ENV.fetch("REDMINE_ATTACHMENTS_PATH", "/rails/files").to_json %>
+
+development:

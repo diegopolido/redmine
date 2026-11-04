@@ -1,0 +1,34 @@
+# Deployment database configuration — every value comes from ENV, so no
+# secrets live in this file. Versioned on the `deploy` branch on purpose
+# (the core .gitignore ignores it; see the negations at the end of .gitignore).
+#
+# The adapter is literal (not ERB) so Redmine's Gemfile detects it and
+# installs the mysql2 gem.
+
+production:
+  adapter: mysql2
+  database: <%= ENV.fetch("REDMINE_DB_DATABASE", "redmine") %>
+  host: <%= ENV.fetch("REDMINE_DB_HOST", "127.0.0.1") %>
+  port: <%= ENV.fetch("REDMINE_DB_PORT", "3306") %>
+  username: <%= ENV.fetch("REDMINE_DB_USERNAME", "redmine") %>
+  password: <%= ENV["REDMINE_DB_PASSWORD"].to_s.to_json %>
+  encoding: utf8mb4
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS", "3").to_i + 1 %>
+  variables:
+    transaction_isolation: "READ-COMMITTED"
+
+development:
+  adapter: mysql2
+  database: redmine_development
+  host: <%= ENV.fetch("REDMINE_DB_HOST", "127.0.0.1") %>
+  username: <%= ENV.fetch("REDMINE_DB_USERNAME", "root") %>
+  password: <%= ENV["REDMINE_DB_PASSWORD"].to_s.to_json %>
+  encoding: utf8mb4
+
+test:
+  adapter: mysql2
+  database: redmine_test
+  host: <%= ENV.fetch("REDMINE_DB_HOST", "127.0.0.1") %>
+  username: <%= ENV.fetch("REDMINE_DB_USERNAME", "root") %>
+  password: <%= ENV["REDMINE_DB_PASSWORD"].to_s.to_json %>
+  encoding: utf8mb4
