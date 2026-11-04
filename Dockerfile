@@ -11,10 +11,11 @@ FROM docker.io/library/ruby:${RUBY_VERSION}-slim AS base
 
 WORKDIR /rails
 
-# Runtime packages only: MySQL client library (mysql2 adapter) and jemalloc
-# (lower memory fragmentation; the server is shared by several apps).
+# Runtime packages only: jemalloc (lower memory fragmentation; the server is
+# shared by several apps). PostgreSQL needs no system library: the precompiled
+# pg gem (see Gemfile.lock platforms) bundles libpq.
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y libmariadb3 libjemalloc2 libyaml-0-2 curl && \
+    apt-get install --no-install-recommends -y libjemalloc2 libyaml-0-2 curl && \
     ln -s /usr/lib/$(uname -m)-linux-gnu/libjemalloc.so.2 /usr/local/lib/libjemalloc.so && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives
 
@@ -33,7 +34,7 @@ ENV RAILS_ENV="production" \
 FROM base AS build
 
 RUN apt-get update -qq && \
-    apt-get install --no-install-recommends -y build-essential default-libmysqlclient-dev libyaml-dev pkg-config && \
+    apt-get install --no-install-recommends -y build-essential libyaml-dev pkg-config && \
     rm -rf /var/lib/apt/lists/* /var/cache/apt/archives
 
 # Everything Redmine's Gemfile reads to decide which gems to install:

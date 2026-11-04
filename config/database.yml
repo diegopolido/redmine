@@ -3,32 +3,32 @@
 # (the core .gitignore ignores it; see the negations at the end of .gitignore).
 #
 # The adapter is literal (not ERB) so Redmine's Gemfile detects it and
-# installs the mysql2 gem.
+# installs the pg gem. Defaults point at the Kamal accessory `db`
+# (container `redmine-db`).
 
 production:
-  adapter: mysql2
+  adapter: postgresql
+  encoding: utf8
   database: <%= ENV.fetch("REDMINE_DB_DATABASE", "redmine") %>
-  host: <%= ENV.fetch("REDMINE_DB_HOST", "127.0.0.1") %>
-  port: <%= ENV.fetch("REDMINE_DB_PORT", "3306") %>
+  host: <%= ENV.fetch("REDMINE_DB_HOST", "redmine-db") %>
+  port: <%= ENV.fetch("REDMINE_DB_PORT", "5432") %>
   username: <%= ENV.fetch("REDMINE_DB_USERNAME", "redmine") %>
   password: <%= ENV["REDMINE_DB_PASSWORD"].to_s.to_json %>
-  encoding: utf8mb4
-  pool: <%= ENV.fetch("RAILS_MAX_THREADS", "3").to_i + 1 %>
-  variables:
-    transaction_isolation: "READ-COMMITTED"
+  # One connection per Puma thread (single process, see config/puma.rb).
+  pool: <%= ENV.fetch("RAILS_MAX_THREADS", "3") %>
 
 development:
-  adapter: mysql2
+  adapter: postgresql
+  encoding: utf8
   database: redmine_development
   host: <%= ENV.fetch("REDMINE_DB_HOST", "127.0.0.1") %>
-  username: <%= ENV.fetch("REDMINE_DB_USERNAME", "root") %>
+  username: <%= ENV.fetch("REDMINE_DB_USERNAME", "postgres") %>
   password: <%= ENV["REDMINE_DB_PASSWORD"].to_s.to_json %>
-  encoding: utf8mb4
 
 test:
-  adapter: mysql2
+  adapter: postgresql
+  encoding: utf8
   database: redmine_test
   host: <%= ENV.fetch("REDMINE_DB_HOST", "127.0.0.1") %>
-  username: <%= ENV.fetch("REDMINE_DB_USERNAME", "root") %>
+  username: <%= ENV.fetch("REDMINE_DB_USERNAME", "postgres") %>
   password: <%= ENV["REDMINE_DB_PASSWORD"].to_s.to_json %>
-  encoding: utf8mb4
