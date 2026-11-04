@@ -100,7 +100,15 @@ valores para o servidor durante o deploy, como variáveis de ambiente dos contai
   `bin/env-secret NOME`, que procura primeiro uma variável de ambiente com esse nome e
   depois o `.env.production`. Nunca coloque valores literais nesse arquivo.
 - `.kamal/hooks/pre-connect` aborta qualquer comando do Kamal se faltar um secret
-  obrigatório. Sem esse hook, o Kamal faria o deploy com o valor vazio.
+  obrigatório. Sem esse hook, o Kamal faria o deploy com o valor vazio. O hook também
+  aborta se houver risco de vazamento:
+  - um valor de secret ou algo com cara de token (`ghp_`, `github_pat_`, `xsmtpsib-`…) no
+    `.env.production.example`;
+  - uma linha do `.kamal/secrets` que não seja `NOME=$(bin/env-secret NOME)`;
+  - o `.env.production` rastreado pelo git.
+
+  Essa verificação só roda quando você usa o `bin/kamal`, não no `git commit`. Confira o
+  `git status` antes de commitar.
 - Para conferir (cuidado, isso imprime os valores): `bin/kamal secrets print`.
 
 | Secret | Uso |

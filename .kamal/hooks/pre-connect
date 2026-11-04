@@ -5,6 +5,43 @@
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 
+# --- Leak guards: secret values must only ever live in .env.production --------
+leaks=()
+
+# 1. The versioned template must not carry secret values. (Non-secret
+#    defaults such as SMTP_ADDRESS, SMTP_PORT and MAILER_FROM are allowed.)
+sensitive=(KAMAL_REGISTRY_PASSWORD SECRET_KEY_BASE MYSQL_ROOT_PASSWORD REDMINE_DB_PASSWORD
+           SMTP_USERNAME SMTP_PASSWORD)
+for name in "${sensitive[@]}"; do
+  if grep -qE "^[[:space:]]*(export[[:space:]]+)?${name}=[[:space:]]*[^[:space:]#]" .env.production.example; then
+    leaks+=(".env.production.example has a value for $name")
+  fi
+done
+# Well-known token formats anywhere in the template (GitHub, Brevo).
+if grep -qE '(ghp_|gho_|github_pat_|xsmtpsib-|xkeysib-)[A-Za-z0-9_-]{10,}' .env.production.example; then
+  leaks+=(".env.production.example contains something that looks like a token")
+fi
+
+# 2. .kamal/secrets is versioned: only `NAME=$(bin/env-secret [--optional] NAME)`.
+while IFS= read -r line; do
+  [[ "$line" =~ ^[[:space:]]*(#|$) ]] && continue
+  [[ "$line" =~ ^[A-Z_][A-Z0-9_]*=\$\(bin/env-secret( --optional)?\ [A-Z_][A-Z0-9_]*\)$ ]] \
+    || leaks+=(".kamal/secrets has a line that is not a bin/env-secret lookup: ${line%%=*}=...")
+done < .kamal/secrets
+
+# 3. .env.production itself must never be tracked by git.
+if git ls-files --error-unmatch .env.production >/dev/null 2>&1; then
+  leaks+=(".env.production is tracked by git (git rm --cached .env.production)")
+fi
+
+if [ ${#leaks[@]} -gt 0 ]; then
+  echo "Refusing to run: possible secret leak in versioned files:" >&2
+  printf '  - %s\n' "${leaks[@]}" >&2
+  echo "Move the values to .env.production and restore the file (git checkout -- <file>)." >&2
+  exit 1
+fi
+
+# --- Required secrets ----------------------------------------------------------
 required=(KAMAL_REGISTRY_PASSWORD SECRET_KEY_BASE MYSQL_ROOT_PASSWORD REDMINE_DB_PASSWORD)
 # SMTP credentials are required only while SMTP is enabled (SMTP_ADDRESS set).
 if bin/env-secret SMTP_ADDRESS >/dev/null 2>&1; then
