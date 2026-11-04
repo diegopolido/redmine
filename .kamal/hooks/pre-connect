@@ -10,7 +10,7 @@ leaks=()
 
 # 1. The versioned template must not carry secret values. (Non-secret
 #    defaults such as SMTP_ADDRESS, SMTP_PORT and MAILER_FROM are allowed.)
-sensitive=(KAMAL_REGISTRY_PASSWORD SECRET_KEY_BASE MYSQL_ROOT_PASSWORD REDMINE_DB_PASSWORD
+sensitive=(KAMAL_REGISTRY_PASSWORD SECRET_KEY_BASE REDMINE_DB_PASSWORD
            SMTP_USERNAME SMTP_PASSWORD)
 for name in "${sensitive[@]}"; do
   if grep -qE "^[[:space:]]*(export[[:space:]]+)?${name}=[[:space:]]*[^[:space:]#]" .env.production.example; then
@@ -42,7 +42,7 @@ if [ ${#leaks[@]} -gt 0 ]; then
 fi
 
 # --- Required secrets ----------------------------------------------------------
-required=(KAMAL_REGISTRY_PASSWORD SECRET_KEY_BASE MYSQL_ROOT_PASSWORD REDMINE_DB_PASSWORD)
+required=(KAMAL_REGISTRY_PASSWORD SECRET_KEY_BASE REDMINE_DB_PASSWORD)
 # SMTP credentials are required only while SMTP is enabled (SMTP_ADDRESS set).
 if bin/env-secret SMTP_ADDRESS >/dev/null 2>&1; then
   required+=(SMTP_PORT SMTP_USERNAME SMTP_PASSWORD MAILER_FROM)

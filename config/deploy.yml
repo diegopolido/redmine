@@ -46,7 +46,7 @@ env:
     RAILS_MAX_THREADS: 3
     WEB_CONCURRENCY: 1 # Puma single mode: one process, few threads
     REDMINE_DB_HOST: redmine-db # container name of the `db` accessory
-    REDMINE_DB_PORT: 3306
+    REDMINE_DB_PORT: 5432
     REDMINE_DB_DATABASE: redmine
     REDMINE_DB_USERNAME: redmine
     REDMINE_ATTACHMENTS_PATH: /rails/files
@@ -73,26 +73,37 @@ aliases:
   console: app exec --interactive --reuse "bin/rails console"
   shell: app exec --interactive --reuse "bash"
   logs: app logs -f
-  dbc: accessory exec db --interactive --reuse "mysql -uroot -p" # prompts for MYSQL_ROOT_PASSWORD
+  dbc: accessory exec db --interactive --reuse "psql -U redmine redmine"
 
 accessories:
-  # Named `db` so it can later be shared by other apps on the server: each
-  # app gets its own database + user (see DEPLOY.md). Not published on any
-  # host port; apps reach it as `redmine-db:3306` on the `kamal` network.
+  # The app's OWN PostgreSQL (one per app on this server), so Redmine can be
+  # moved alone to another server: change the IP, `bin/kamal setup`, restore.
+  # Container `redmine-db` on the `kamal` network; no host port is published.
   db:
-    image: mysql:8.4
+    image: postgres:18
     host: *vps_ip
-    cmd: >-
-      --performance-schema=OFF
-      --skip-name-resolve
-      --innodb-buffer-pool-size=256M
-      --max-connections=100
     env:
       clear:
-        MYSQL_DATABASE: redmine
-        MYSQL_USER: redmine
+        POSTGRES_DB: redmine
+        POSTGRES_USER: redmine
       secret:
-        - MYSQL_ROOT_PASSWORD
-        - MYSQL_PASSWORD
+        - POSTGRES_PASSWORD
+    # Postgres 18 images keep PGDATA under /var/lib/postgresql/18/docker:
+    # mount the parent directory.
     volumes:
-      - "mysql_data:/var/lib/mysql"
+      - "redmine_pgdata:/var/lib/postgresql"
+    options:
+      memory: 512m       # hard limit — the VPS is shared with other apps
+      shm-size: 128m
+    # Tuning sized for the 512 MB limit and a single Puma process (3 threads).
+    cmd: >-
+      postgres
+      -c max_connections=20
+      -c shared_buffers=128MB
+      -c effective_cache_size=256MB
+      -c work_mem=4MB
+      -c maintenance_work_mem=32MB
+      -c wal_buffers=4MB
+      -c max_wal_size=512MB
+      -c max_parallel_workers_per_gather=1
+      -c max_worker_processes=4
