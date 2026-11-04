@@ -1,0 +1,21 @@
+<% if @issue.project.module_enabled?('agile') %>
+  <div id="agile_data_fields" style="display:none">
+    <% if RedmineAgile.use_story_points_for?(@issue.tracker) && @issue.safe_attribute?('agile_data_attributes') %>
+      <%= form.fields_for :agile_data do |f| %>
+        <p class="agile-right">
+            <%= f.text_field :story_points, :size => 3, :required => @issue.required_attribute?('agile_data_attributes') %>
+        </p>
+      <% end %>
+    <% end %>
+  </div>
+  <%= javascript_tag "var sc = $('#attributes .splitcontent').first();" \
+                     "$('#agile_data_fields').children('.agile-left').appendTo(sc.children('.splitcontentleft'));" \
+                     "$('#agile_data_fields').children('.agile-right').appendTo(sc.children('.splitcontentright'));" \
+                     "$('#agile_data_fields').remove();" %>
+  <% content_for :header_tags do %>
+  <% end %>
+<% end %>
+
+<% content_for :header_tags do %>
+  <%= javascript_include_tag "redmine_agile", :plugin => 'redmine_agile' %>
+<% end %>

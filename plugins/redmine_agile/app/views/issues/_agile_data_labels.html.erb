@@ -1,0 +1,18 @@
+<% if @issue.project.module_enabled?('agile') %>
+  <% story_points = issue_story_points_details(@issue) if RedmineAgile.use_story_points? && RedmineAgile.use_story_points_for?(@issue.tracker) %>
+  <% sprint = color = nil %>
+  <% rows_html = issue_fields_rows do |rows|
+    rows.right l(:label_agile_story_points), story_points if story_points.present?
+  end %>
+  <%= content_tag :div, rows_html, id: 'agile_data_labels', style: 'display:none' %>
+  <%= javascript_tag "var sc = $('#agile_data_labels').closest('.attributes').children('.splitcontent').first();" \
+                     "$('#agile_data_labels .splitcontentleft').children().appendTo(sc.children('.splitcontentleft'));" \
+                     "$('#agile_data_labels .splitcontentright').children().appendTo(sc.children('.splitcontentright'));" \
+                     "$('#agile_data_labels').remove();" %>
+  <% if color %>
+    <% content_for :header_tags do %>
+      <%= stylesheet_link_tag 'jquery.simplecolorpicker.css', plugin: 'redmine_agile' %>
+    <% end %>
+  <% end %>
+  <%= javascript_tag "linkableAttributeFields();" %>
+<% end %>

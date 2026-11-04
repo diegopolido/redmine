@@ -1,0 +1,106 @@
+<% if issues_scope.empty? %>
+  <p class="nodata"><%= l(:label_no_data) %></p>
+<% elsif %w(work_burndown hours_velocity).include?(chart) && issues_scope.count > RedmineAgile.time_reports_items_limit %>
+  <p class="nodata"><%= l(:label_agile_too_many_items, :max => RedmineAgile.time_reports_items_limit) %></p>
+<% else %>
+  <div class="agile-chart-summary"></div>
+  <div class="agile-chart-container">
+    <canvas id="agile-chart"></canvas>
+    <div style="clear: both;"></div>
+  </div>
+<% end %>
+
+<%= javascript_tag do %>
+  $(document).ready(function(){
+    if (document.getElementById("agile-chart")) {
+      $.getJSON(<%= raw url_for(controller: 'agile_charts', action: 'render_chart', project_id: @project,
+                                chart: chart, version_id: @version, query_id: @query.try(:id), chart_unit: chart_unit).to_json %>, function(data){
+
+        Chart.defaults.color = 'black';
+        Chart.defaults.font.family = '"Arial", sans-serif';
+        Chart.defaults.font.style = 'normal';
+
+        if (data['type'] == 'scatter' && !data['datasets'].some(function(dataset) { return dataset.data.length; })) {
+          $('.agile-chart-container').replaceWith($('<p class="nodata">').text(<%= l(:label_no_data).to_json.html_safe %>));
+          return;
+        }
+
+        renderChartSummary(data['summary_html']);
+
+        var chartData = {
+          labels: data['labels'],
+          datasets: data['datasets'],
+          stacked: data['stacked']
+        };
+
+      new Chart(document.getElementById("agile-chart").getContext("2d"), {
+        type: data['type'] || 'bar',
+        data: chartData,
+        plugins: [AgileReadableAxes, AgileMergeSeries],
+        options: {
+          maintainAspectRatio: false,
+          plugins: {
+            agileMergeSeries: {
+              enabled: <%= chart.to_s == 'cumulative_flow' %>,
+              key: <%= "agile.cfd.merge.#{@project.try(:id)}".to_json.html_safe %>,
+              labels: { merge: <%= l(:label_agile_merge_series).to_json.html_safe %>, split: <%= l(:label_agile_split_series).to_json.html_safe %> }
+            },
+            agileReadableAxes: { enabled: <%= chart.to_s.match?(/burn(up|down)|cumulative_flow/) %> },
+            tooltip: {
+              callbacks: chartTooltipCallbacks(data['type'], data['labels'], data['footers']),
+              filter: function(item) {
+                return !!item.dataset.label && !item.dataset.hideTooltip;
+              }
+            },
+            legend: {
+              labels: {
+                filter: function(legendItem, chartData) {
+                  return !!legendItem.text;
+                }
+              }
+            }
+          },
+          title: {
+            display: true,
+            fontSize: 16,
+            fontStyle: 'normal',
+            text: data['title']
+          },
+          elements: {
+            line: {
+                tension: 0, // disables bezier curves
+            }
+          },
+          scales: {
+            y: {
+              stacked: data['stacked'],
+              title: {
+                display: true,
+                fontColor: 'rgba(255, 0, 0 ,1)',
+                fontSize: 14,
+                text: data['y_title']
+              }
+            },
+            x: {
+              ticks: {
+                autoSkip: true,
+                maxRotation: 0,
+                callback: function(value, index, values) {
+                  if (data['type'] == 'scatter') {
+                    return Number.isInteger(value) ? data['labels'][value] : null
+                  } else {
+                    return this.getLabelForValue(value)
+                  }
+                }
+              }
+            }
+            },
+          }
+        });
+      }).fail(function(xhr) {
+        var message = xhr.responseJSON && xhr.responseJSON.error;
+        if (message) { $('.agile-chart-container').replaceWith($('<p class="nodata">').text(message)) }
+      });
+    }
+  });
+<% end %>

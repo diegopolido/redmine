@@ -1,0 +1,24 @@
+<div class="agile-options">
+  <div class="agile-option agile-option-chart">
+    <label for="chart"><%= l(:label_agile_chart) %></label>
+    <%= select_tag 'chart', options_charts_for_select(chart), onchange: "toggleChartUnit($(this).val(), 'chart-unit-row'); toggleCycleOptions($(this).val());" %>
+  </div>
+  <div id="chart-unit-row" class="agile-option agile-option-units">
+    <label for="chart_unit"><%= l(:label_agile_chart_units) %></label>
+    <%= select_tag 'chart_unit', options_chart_units_for_select(query.chart_unit) %>
+  </div>
+  <div id="interval-size" class="agile-option agile-option-interval">
+    <label for="interval_size"><%= l(:label_agile_interval_size) %></label>
+    <%= select_tag 'interval_size', options_for_select([[l(:label_agile_interval_auto), '']] + RedmineAgile::Charts::AgileChart::TIME_INTERVALS.map { |i| [l(:"label_agile_#{i}"), i] }, query.interval_size_option) %>
+  </div>
+  <div class="agile-option agile-option-cycle cycle-options">
+    <label for="cycle_statuses"><%= l(:label_agile_cycle_statuses) %></label>
+    <%= select_tag 'cycle_statuses', options_from_collection_for_select(query.available_cycle_statuses, :id, :name, query.cycle_statuses), multiple: true %>
+  </div>
+  <% if Setting.non_working_week_days.any? %>
+    <div class="agile-option agile-option-working weekend-options">
+      <label for="non_working_days"><%= l(:label_agile_non_working_days) %></label>
+      <%= check_box_tag 'non_working_days', '1', query.non_working_days %>
+    </div>
+  <% end %>
+</div>

@@ -1,0 +1,12 @@
+<% tiles.each do |tile| %>
+  <div class="box">
+    <em class="info"><%= tile[:label] %></em>
+    <% if tile[:change] %>
+      <% good = tile[:better] ? (tile[:change] > 0) == (tile[:better].to_s == 'up') : nil %>
+      <h2><%= tile[:value] %></h2><em class="<%= ['info', 'change', ({ true => 'good', false => 'bad' }[good])].compact.join(' ') %>" title="<%= tile[:change_title] %>"><%= tile[:change] > 0 ? '▲' : '▼' %><%= tile[:change].abs %>%</em>
+    <% else %>
+      <h2><%= tile[:value] %></h2>
+    <% end %>
+    <% if tile[:hint] %><em class="info"><%= tile[:hint] %></em><% end %>
+  </div>
+<% end %>

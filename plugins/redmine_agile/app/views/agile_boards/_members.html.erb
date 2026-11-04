@@ -1,0 +1,8 @@
+<h3><%=l(:label_member_plural)%></h3>
+  <% users = @project.assignable_users.limit(RedmineAgile::MEMBERS_LIMIT).to_a %>
+  <% RedmineAgile.preload_associations(users.grep(User), RedmineAgile.user_card_associations) %>
+  <% users.each do |user| %>
+    <span class="assignable-user" data-id="<%= user.id %>"><%= avatar(user.is_a?(User) ? user : '<gravatar>', :size => "14", :style => agile_user_color(user, :color_base => @query.respond_to?(:color_base) && @query.color_base) ).to_s.html_safe + " " + link_to_user(user) %>
+    <br>
+    </span>
+  <% end %>

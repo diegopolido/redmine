@@ -1,0 +1,1 @@
+gem 'redmineup' unless dependencies.any? { |d| d.name == 'redmineup' }
