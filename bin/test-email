@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Sends Redmine's own test e-mail (Mailer.deliver_test_email — the same as
 # Administration > Settings > Email notifications > "Send a test email")
-# from the production image, against a throwaway local MySQL.
+# from the production image, against a throwaway local PostgreSQL.
 #
 # Usage:
 #   bin/test-email --mailpit you@example.com   # local fake SMTP (no credentials,
@@ -51,12 +51,12 @@ fi
 step "Building the production image"
 docker build -q -t $IMAGE . >/dev/null
 
-step "Starting a throwaway MySQL"
-docker run -d --name $P-db --network $P-net -e MYSQL_ROOT_PASSWORD=r -e MYSQL_DATABASE=redmine \
-  -e MYSQL_USER=redmine -e MYSQL_PASSWORD=p mysql:8.4 --performance-schema=OFF >/dev/null
-for i in $(seq 90); do
-  docker exec $P-db mysqladmin -h127.0.0.1 -uroot -pr ping --silent >/dev/null 2>&1 && break
-  [ "$i" = 90 ] && die "MySQL did not start"; sleep 2
+step "Starting a throwaway PostgreSQL"
+docker run -d --name $P-db --network $P-net -e POSTGRES_DB=redmine -e POSTGRES_USER=redmine \
+  -e POSTGRES_PASSWORD=p postgres:18 >/dev/null
+for i in $(seq 60); do
+  docker exec $P-db pg_isready -q -h 127.0.0.1 -U redmine && break
+  [ "$i" = 60 ] && die "PostgreSQL did not start"; sleep 2
 done
 
 step "Migrating and sending the test e-mail to $TEST_EMAIL_TO"
